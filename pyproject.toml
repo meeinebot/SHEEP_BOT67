@@ -1,0 +1,11 @@
+[project]
+name = "telegram-subtitle-bot"
+version = "0.1.0"
+description = "Telegram bot that transcribes video speech into SRT subtitles."
+requires-python = ">=3.13"
+dependencies = [
+    "faster-whisper==1.2.1",
+]
+
+[tool.uv]
+package = false
