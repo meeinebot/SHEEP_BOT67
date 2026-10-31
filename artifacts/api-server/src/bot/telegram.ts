@@ -230,9 +230,11 @@ async function processVideo(
   const inputPath = path.join(tempDir, "input-video");
   const audioPath = path.join(tempDir, "audio.wav");
   const subtitlesPath = path.join(tempDir, "subtitles.srt");
+  let stage = "downloading video";
 
   try {
     await downloadTelegramFile(telegramFile.file_path, inputPath);
+    stage = "checking video duration";
     const durationText = await runProcess("ffprobe", [
       "-v",
       "error",
@@ -251,6 +253,7 @@ async function processVideo(
       return;
     }
 
+    stage = "extracting audio";
     await runProcess("ffmpeg", [
       "-nostdin",
       "-hide_banner",
@@ -270,15 +273,24 @@ async function processVideo(
     ]);
 
     await sendMessage(chatId, "Звук извлечён. Запускаю распознавание речи.");
+    stage = "transcribing audio";
     const resultText = await runProcess(
       "uv",
       ["run", "python", TRANSCRIBE_SCRIPT, audioPath],
       60 * 60 * 1000,
     );
     const result = JSON.parse(resultText) as Transcription;
+    stage = "formatting subtitles";
+    logger.info(
+      { language: result.language, segmentCount: result.segments.length },
+      "Video transcription finished",
+    );
     const srt = formatSrt(result.segments);
     if (!srt.trim()) {
-      await sendMessage(chatId, "Не удалось распознать речь в этом видео.");
+      await sendMessage(
+        chatId,
+        "Звук извлечён, но модель не распознала слова. Проверь, что в видео слышна речь, а не только музыка или фоновые звуки.",
+      );
       return;
     }
 
@@ -289,6 +301,12 @@ async function processVideo(
       subtitlesPath,
       `Субтитры готовы. Распознанный язык: ${language}.`,
     );
+  } catch (error) {
+    logger.error(
+      { stage, reason: safeErrorMessage(error) },
+      "Video transcription failed",
+    );
+    throw error;
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -416,4 +434,9 @@ function runProcess(
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function safeErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : "Unknown error";
+  return BOT_TOKEN ? message.replaceAll(BOT_TOKEN, "[redacted]") : message;
 }

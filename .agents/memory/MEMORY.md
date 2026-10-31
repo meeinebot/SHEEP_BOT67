@@ -1,1 +1,1 @@
-- [Telegram subtitle bot](telegram-subtitles.md) — free transcription, original-language subtitles, and a 27-minute video limit are core product requirements.
+- [Telegram subtitle bot](telegram-subtitles.md) — free transcription, original-language subtitles, 27-minute videos, and files up to 950 MB are core requirements.
